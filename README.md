@@ -51,10 +51,10 @@ It started out as https://github.com/znly/docker-protobuf fork, but grew into a 
 
 ## Usage
 ```
-$ docker run --rm -v<some-path>:<some-path> -w<some-path> rvolosatovs/protoc [OPTION] PROTO_FILES
+$ docker run --rm -v<some-path>:<some-path> -w<some-path> streamdal/protoc [OPTION] PROTO_FILES
 ```
 
 For help try:
 ```
-$ docker run --rm rvolosatovs/protoc --help
+$ docker run --rm streamdal/protoc --help
 ```

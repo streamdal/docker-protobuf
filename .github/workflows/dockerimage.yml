@@ -51,7 +51,7 @@ jobs:
       id: docker_meta
       uses: docker/metadata-action@v5
       with:
-        images: rvolosatovs/protoc
+        images: streamdal/protoc
         tags: |
           type=raw,value=development,enable=${{ github.ref == 'refs/heads/main' }}
           type=semver,pattern={{version}}

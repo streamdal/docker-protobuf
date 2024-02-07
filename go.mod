@@ -1,4 +1,4 @@
-module github.com/rvolosatovs/docker-protobuf
+module github.com/streamdal/docker-protobuf
 
 go 1.17
 
