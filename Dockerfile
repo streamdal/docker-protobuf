@@ -363,10 +363,9 @@ RUN pkg \
 RUN install -D protoc-gen-ts /out/usr/bin/protoc-gen-ts
 
 FROM sbtscala/scala-sbt:${SCALA_SBT_IMAGE_VERSION} as protoc_gen_scala
-RUN sudo apt-get update && sudo apt-get install -y ca-certificates && sudo update-ca-certificates
 RUN mkdir -p /scala-protobuf
 ARG PROTOC_GEN_SCALA_VERSION
-RUN curl -sSL https://api.github.com/repos/scalapb/ScalaPB/tarball/${PROTOC_GEN_SCALA_VERSION} | tar xz --strip 1 -C /scala-protobuf
+RUN curl -k -sSL https://api.github.com/repos/scalapb/ScalaPB/tarball/${PROTOC_GEN_SCALA_VERSION} | tar xz --strip 1 -C /scala-protobuf
 WORKDIR /scala-protobuf
 RUN gu install native-image
 # Make sbt use the version of native-image installed by gu instead of downloading a separate version
