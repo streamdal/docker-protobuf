@@ -363,7 +363,7 @@ RUN pkg \
 RUN install -D protoc-gen-ts /out/usr/bin/protoc-gen-ts
 
 FROM sbtscala/scala-sbt:${SCALA_SBT_IMAGE_VERSION} as protoc_gen_scala
-RUN apt install ca-certificates
+RUN sudo apt install ca-certificates
 RUN mkdir -p /scala-protobuf
 ARG PROTOC_GEN_SCALA_VERSION
 RUN curl -sSL https://api.github.com/repos/scalapb/ScalaPB/tarball/${PROTOC_GEN_SCALA_VERSION} | tar xz --strip 1 -C /scala-protobuf
