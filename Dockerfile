@@ -5,7 +5,6 @@ ARG DART_IMAGE_VERSION
 ARG GO_IMAGE_VERSION
 ARG NODE_IMAGE_VERSION
 ARG RUST_IMAGE_VERSION
-ARG SCALA_SBT_IMAGE_VERSION
 ARG SWIFT_IMAGE_VERSION
 ARG XX_IMAGE_VERSION
 
@@ -362,18 +361,6 @@ RUN pkg \
         /usr/local/lib/node_modules/ts-protoc-gen
 RUN install -D protoc-gen-ts /out/usr/bin/protoc-gen-ts
 
-FROM sbtscala/scala-sbt:${SCALA_SBT_IMAGE_VERSION} as protoc_gen_scala
-RUN mkdir -p /scala-protobuf
-ARG PROTOC_GEN_SCALA_VERSION
-RUN curl -k -sSL https://api.github.com/repos/scalapb/ScalaPB/tarball/${PROTOC_GEN_SCALA_VERSION} | tar xz --strip 1 -C /scala-protobuf
-WORKDIR /scala-protobuf
-RUN gu install native-image
-# Make sbt use the version of native-image installed by gu instead of downloading a separate version
-ARG NATIVE_IMAGE_INSTALLED=true
-RUN ./make_reflect_config.sh
-RUN sbt protocGenScalaNativeImage/nativeImage
-RUN install -D /scala-protobuf/target/protoc-gen-scala /out/usr/bin/protoc-gen-scala
-
 FROM dart:${DART_IMAGE_VERSION} as protoc_gen_dart
 RUN apt-get update
 RUN apt-get install -y curl
@@ -411,7 +398,7 @@ COPY --from=protoc_gen_js /out/ /out/
 COPY --from=protoc_gen_jsonschema /out/ /out/
 COPY --from=protoc_gen_lint /out/ /out/
 COPY --from=protoc_gen_rust /out/ /out/
-COPY --from=protoc_gen_scala /out/ /out/
+#COPY --from=protoc_gen_scala /out/ /out/
 COPY --from=protoc_gen_validate /out/ /out/
 ARG TARGETARCH
 RUN find /out/usr/bin/ -type f \
@@ -476,7 +463,6 @@ RUN mkdir -p /test && \
         --python_out=/test \
         --ruby_out=/test \
         --rust_out=/test \
-        --scala_out=/test \
         --ts_out=/test \
         --validate_out=lang=go:/test \
         google/protobuf/any.proto
