@@ -1,11 +1,9 @@
 # syntax=docker/dockerfile:1.4
 
 ARG ALPINE_IMAGE_VERSION
-ARG DART_IMAGE_VERSION
 ARG GO_IMAGE_VERSION
 ARG NODE_IMAGE_VERSION
 ARG RUST_IMAGE_VERSION
-ARG SWIFT_IMAGE_VERSION
 ARG XX_IMAGE_VERSION
 
 
@@ -111,22 +109,6 @@ RUN xx-go --wrap
 RUN go build -ldflags '-w -s' -o /protoc-gen-gotemplate-out/protoc-gen-gotemplate .
 RUN install -D /protoc-gen-gotemplate-out/protoc-gen-gotemplate /out/usr/bin/protoc-gen-gotemplate
 RUN xx-verify /out/usr/bin/protoc-gen-gotemplate
-
-
-FROM --platform=$BUILDPLATFORM go_host as protoc_gen_gorm
-RUN mkdir -p ${GOPATH}/src/github.com/infobloxopen/protoc-gen-gorm
-ARG PROTOC_GEN_GORM_VERSION
-RUN curl -sSL https://api.github.com/repos/infobloxopen/protoc-gen-gorm/tarball/${PROTOC_GEN_GORM_VERSION} | tar xz --strip 1 -C ${GOPATH}/src/github.com/infobloxopen/protoc-gen-gorm
-WORKDIR ${GOPATH}/src/github.com/infobloxopen/protoc-gen-gorm
-RUN mkdir /protoc-gen-gorm-out
-RUN go mod download
-ARG TARGETPLATFORM
-RUN xx-go --wrap
-RUN go build -ldflags '-w -s' -o /protoc-gen-gorm-out ./...
-RUN install -D /protoc-gen-gorm-out/protoc-gen-gorm /out/usr/bin/protoc-gen-gorm
-RUN install -D ./proto/options/gorm.proto /out/usr/include/github.com/infobloxopen/protoc-gen-gorm/options/gorm.proto
-RUN install -D ./proto/types/types.proto /out/usr/include/github.com/infobloxopen/protoc-gen-gorm/types/types.proto
-RUN xx-verify /out/usr/bin/protoc-gen-gorm
 
 
 FROM --platform=$BUILDPLATFORM go_host as protoc_gen_govalidators
@@ -242,47 +224,6 @@ RUN install -D /grpc-rust/target/$(xx-cargo --print-target-triple)/release/proto
 RUN xx-verify /out/usr/bin/protoc-gen-rust-grpc
 
 
-FROM swift:${SWIFT_IMAGE_VERSION} as grpc_swift
-RUN apt-get update
-RUN apt-get install -y \
-        build-essential \
-        curl \
-        libnghttp2-dev \
-        libssl-dev \
-        patchelf \
-        unzip \
-        zlib1g-dev
-ARG TARGETOS TARGETARCH GRPC_SWIFT_VERSION
-RUN <<EOF
-    mkdir -p /protoc-gen-swift
-    # Skip arm64 build due to https://forums.swift.org/t/build-crash-when-building-in-qemu-using-new-swift-5-6-arm64-image/56090/
-    # TODO: Remove this conditional once fixed
-    if [ "${TARGETARCH}" = "arm64" ]; then
-      echo "Skipping arm64 build due to error in Swift toolchain"
-      exit 0
-    fi
-    case ${TARGETARCH} in
-      "amd64")  SWIFT_LIB_DIR=/lib64 && SWIFT_LINKER=ld-${TARGETOS}-x86-64.so.2  ;;
-      "arm64")  SWIFT_LIB_DIR=/lib   && SWIFT_LINKER=ld-${TARGETOS}-aarch64.so.1 ;;
-      *)        echo "ERROR: Machine arch ${TARGETARCH} not supported." ;;
-    esac
-    mkdir -p /grpc-swift
-    curl -sSL https://api.github.com/repos/grpc/grpc-swift/tarball/${GRPC_SWIFT_VERSION} | tar xz --strip 1 -C /grpc-swift
-    cd /grpc-swift
-    make
-    make plugins
-    install -Ds /grpc-swift/protoc-gen-swift /protoc-gen-swift/protoc-gen-swift
-    install -Ds /grpc-swift/protoc-gen-grpc-swift /protoc-gen-swift/protoc-gen-grpc-swift
-    cp ${SWIFT_LIB_DIR}/${SWIFT_LINKER} \
-      $(ldd /protoc-gen-swift/protoc-gen-swift /protoc-gen-swift/protoc-gen-grpc-swift | awk '{print $3}' | grep /lib | sort | uniq) \
-      /protoc-gen-swift/
-    find /protoc-gen-swift/ -name 'lib*.so*' -exec patchelf --set-rpath /protoc-gen-swift {} \;
-    for p in protoc-gen-swift protoc-gen-grpc-swift; do
-      patchelf --set-interpreter /protoc-gen-swift/${SWIFT_LINKER} /protoc-gen-swift/${p}
-    done
-EOF
-
-
 FROM --platform=$BUILDPLATFORM alpine:${ALPINE_IMAGE_VERSION} as alpine_host
 COPY --from=xx / /
 WORKDIR /
@@ -361,20 +302,6 @@ RUN pkg \
         /usr/local/lib/node_modules/ts-protoc-gen
 RUN install -D protoc-gen-ts /out/usr/bin/protoc-gen-ts
 
-FROM dart:${DART_IMAGE_VERSION} as protoc_gen_dart
-RUN apt-get update
-RUN apt-get install -y curl
-RUN mkdir -p /dart-protobuf
-ARG PROTOC_GEN_DART_VERSION
-RUN curl -sSL https://api.github.com/repos/google/protobuf.dart/tarball/protoc_plugin-${PROTOC_GEN_DART_VERSION} | tar xz --strip 1 -C /dart-protobuf
-WORKDIR /dart-protobuf/protoc_plugin
-# Use Dart mirror to work around connectivity problems to default host when building in QEMU
-# https://stackoverflow.com/questions/70729747
-ARG PUB_HOSTED_URL=https://pub.flutter-io.cn
-RUN dart pub get
-RUN dart compile exe --verbose bin/protoc_plugin.dart -o protoc_plugin
-RUN install -D /dart-protobuf/protoc_plugin/protoc_plugin /out/usr/bin/protoc-gen-dart
-
 
 FROM --platform=$BUILDPLATFORM alpine_host as upx
 RUN mkdir -p /upx
@@ -384,13 +311,11 @@ RUN install -D /upx/upx /usr/local/bin/upx
 COPY --from=googleapis /out/ /out/
 COPY --from=grpc_gateway /out/ /out/
 COPY --from=grpc_rust /out/ /out/
-COPY --from=grpc_swift /protoc-gen-swift /out/protoc-gen-swift
 COPY --from=grpc_web /out/ /out/
 COPY --from=protoc_gen_doc /out/ /out/
 COPY --from=protoc_gen_go /out/ /out/
 COPY --from=protoc_gen_go_grpc /out/ /out/
 COPY --from=protoc_gen_gogo /out/ /out/
-COPY --from=protoc_gen_gorm /out/ /out/
 COPY --from=protoc_gen_gotemplate /out/ /out/
 COPY --from=protoc_gen_govalidators /out/ /out/
 COPY --from=protoc_gen_gql /out/ /out/
@@ -422,8 +347,6 @@ RUN apk add --no-cache \
         python3
 COPY --from=upx /out/ /
 COPY --from=protoc_gen_ts /out/ /
-COPY --from=protoc_gen_dart /out/ /
-COPY --from=protoc_gen_dart /runtime/ /
 RUN python3 -m ensurepip && pip3 install --no-cache nanopb==${PROTOC_GEN_NANOPB_VERSION}
 RUN ln -s /usr/bin/grpc_cpp_plugin /usr/bin/protoc-gen-grpc-cpp && \
     ln -s /usr/bin/grpc_csharp_plugin /usr/bin/protoc-gen-grpc-csharp && \
@@ -438,9 +361,7 @@ COPY protoc-wrapper /usr/bin/protoc-wrapper
 RUN mkdir -p /test && \
     protoc-wrapper \
         --c_out=/test \
-        --dart_out=/test \
         --go_out=/test \
-        --gorm_out=/test \
         --gotemplate_out=/test \
         --govalidators_out=/test \
         --gql_out=/test \
@@ -470,18 +391,11 @@ RUN protoc-wrapper \
         --gogo_out=/test \
         google/protobuf/any.proto
 ARG TARGETARCH
-RUN <<EOF
-    if ! [ "${TARGETARCH}" = "arm64" ]; then 
-        ln -s /protoc-gen-swift/protoc-gen-grpc-swift /usr/bin/protoc-gen-grpc-swift
-        ln -s /protoc-gen-swift/protoc-gen-swift /usr/bin/protoc-gen-swift
-    fi
-EOF
+
 RUN <<EOF
     if ! [ "${TARGETARCH}" = "arm64" ]; then
         protoc-wrapper \
-            --grpc-swift_out=/test \
             --js_out=import_style=commonjs:/test \
-            --swift_out=/test \
             google/protobuf/any.proto
     fi
 EOF
