@@ -323,7 +323,6 @@ COPY --from=protoc_gen_js /out/ /out/
 COPY --from=protoc_gen_jsonschema /out/ /out/
 COPY --from=protoc_gen_lint /out/ /out/
 COPY --from=protoc_gen_rust /out/ /out/
-#COPY --from=protoc_gen_scala /out/ /out/
 COPY --from=protoc_gen_validate /out/ /out/
 ARG TARGETARCH
 RUN find /out/usr/bin/ -type f \
@@ -339,7 +338,6 @@ ARG PROTOC_GEN_NANOPB_VERSION
 RUN apk add --no-cache \
         bash \
         grpc \
-        grpc-java \
         grpc-plugins \
         protobuf \
         protobuf-dev \
@@ -349,7 +347,6 @@ COPY --from=upx /out/ /
 COPY --from=protoc_gen_ts /out/ /
 RUN python3 -m ensurepip && pip3 install --no-cache nanopb==${PROTOC_GEN_NANOPB_VERSION}
 RUN ln -s /usr/bin/grpc_cpp_plugin /usr/bin/protoc-gen-grpc-cpp && \
-    ln -s /usr/bin/grpc_csharp_plugin /usr/bin/protoc-gen-grpc-csharp && \
     ln -s /usr/bin/grpc_node_plugin /usr/bin/protoc-gen-grpc-js && \
     ln -s /usr/bin/grpc_objective_c_plugin /usr/bin/protoc-gen-grpc-objc && \
     ln -s /usr/bin/grpc_php_plugin /usr/bin/protoc-gen-grpc-php && \
@@ -366,9 +363,7 @@ RUN mkdir -p /test && \
         --govalidators_out=/test \
         --gql_out=/test \
         --grpc-cpp_out=/test \
-        --grpc-csharp_out=/test \
         --grpc-go_out=/test \
-        --grpc-java_out=/test \
         --grpc-js_out=/test \
         --grpc-objc_out=/test \
         --grpc-php_out=/test \
@@ -376,7 +371,6 @@ RUN mkdir -p /test && \
         --grpc-ruby_out=/test \
         --grpc-rust_out=/test \
         --grpc-web_out=import_style=commonjs,mode=grpcwebtext:/test \
-        --java_out=/test \
         --jsonschema_out=/test \
         --lint_out=/test \
         --nanopb_out=/test \
