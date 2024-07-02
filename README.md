@@ -1,4 +1,4 @@
-![](https://github.com/rvolosatovs/docker-protobuf/workflows/Docker%20Image/badge.svg)
+![](https://github.com/streamdal/docker-protobuf/workflows/Docker%20Image/badge.svg)
 
 # Protocol Buffers + Docker
 An all-inclusive `protoc` Docker image.
